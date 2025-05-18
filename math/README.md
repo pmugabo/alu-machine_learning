@@ -1,0 +1,1 @@
+This project demonstrates basic data visualization using Python with matplotlib and numpy.

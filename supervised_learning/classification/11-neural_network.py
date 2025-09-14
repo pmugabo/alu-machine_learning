@@ -67,3 +67,20 @@ class NeuralNetwork:
     def A2(self):
         '''getter'''
         return self.__A2
+
+    def forward_prop(self, X):
+        '''comment'''
+        self.__A1 = np.dot(self.__W1, X) + self.__b1
+        self.__A1 = 1 / (1 + np.exp(-self.__A1))
+        self.__A2 = np.dot(self.__W2, self.__A1) + self.__b2
+        self.__A2 = 1 / (1 + np.exp(-self.__A2))
+        return self.__A1, self.__A2
+
+    def cost(self, Y, A):
+        '''
+            Calculates the cost of the model using logistic regression
+        '''
+        m = Y.shape[1]
+        cost = - (1 / m) * np.sum(Y * np.log(A) +
+                                  (1 - Y) * np.log(1.0000001 - A))
+        return cost

@@ -1,27 +1,27 @@
 #!/usr/bin/env python3
-"""
-    Function def normalize(X, m, s):
-    that normalizes (standardizes) a matrix:
-"""
+'''
+    Function def shuffle_data(X, Y): that shuffles
+    the data points in two matrices the same way
+'''
 
 
 import numpy as np
 
 
-def normalize(X, m, s):
+def shuffle_data(X, Y):
     '''
-    The normalized X matrix
+        The shuffled X and Y matrices
 
-    Args:
-        - X is the numpy.ndarray of shape (d, nx) to normalize
-        - d is the number of data points
-        - nx is the number of features
-        - m is a numpy.ndarray of shape (nx,) that contains the
-        mean of all features of X
-        - s is a numpy.ndarray of shape (nx,) that contains the
-        standard deviation of all features of X
-
-    Returns:
-        - The normalized X matrix
+        Args:
+            - X is the first numpy.ndarray of shape (m, nx) to shuffle
+                m is the number of data points
+                nx is the number of features in X
+            - Y is the second numpy.ndarray of shape (m, ny) to shuffle
+                m is the same number of data points as in X
+                ny is the number of features in Y
     '''
-    return (X - m) / s
+    m = X.shape[0]
+    shuffled_indexes = np.random.permutation(m)
+    X_shuffled = X[shuffled_indexes]
+    Y_shuffled = Y[shuffled_indexes]
+    return (X_shuffled, Y_shuffled)

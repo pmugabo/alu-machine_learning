@@ -1,39 +1,58 @@
 #!/usr/bin/env python3
-
-""" Return list of ships"""
+"""
+Script that prints the location of a specific user
+using the GitHub API.
+"""
 
 import requests
+import sys
 import time
-from datetime import datetime
 
 
 def main(url):
     """
-    - The user is passed as first argument of the script
-    with the full API URL, example: ./2-user_location.py
-    https://api.github.com/users/holbertonschool
-    - If the user doesn’t exist, print Not found
-    - If the status code is 403, print Reset in X min where X
-    is the number of minutes from now and the value of
-    X-Ratelimit-Reset
-    - Your code should not be executed when the file is
-    imported (you should use if __name__ == '__main__':)
-
+    Prints:
+    - User's location if found
+    - 'Not found' if user doesn't exist (404)
+    - 'Reset in X min' if rate limit reached (403)
     """
+
     response = requests.get(url)
 
+    # Handle user not found
     if response.status_code == 404:
         print("Not found")
+        return
+
+    # Handle rate limit exceeded
     elif response.status_code == 403:
-        reset_timestamp = int(response.headers["X-Ratelimit-Reset"])
-        current_timestamp = int(time.time())
-        reset_in_minutes = (reset_timestamp - current_timestamp) // 60
-        print("Reset in {} min".format(reset_in_minutes))
+        reset_time = response.headers.get("X-RateLimit-Reset")
+        if reset_time:
+            reset_timestamp = int(reset_time)
+            current_time = int(time.time())
+            minutes_left = (reset_timestamp - current_time) // 60
+            print(f"Reset in {minutes_left} min")
+        else:
+            print("Reset in unknown time")
+        return
+
+    # Handle other successful responses
+    elif response.status_code == 200:
+        data = response.json()
+        location = data.get("location")
+        if location:
+            print(location)
+        else:
+            print("Not found")
+        return
+
+    # Handle other unexpected cases
     else:
-        print(response.json()["location"])
+        print("Error: Unexpected response")
 
 
 if __name__ == "__main__":
-    import sys
-
-    main(sys.argv[1])
+    if len(sys.argv) < 2:
+        print("Usage: ./2-user_location.py <GitHub API user URL>")
+    else:
+        main(sys.argv[1])

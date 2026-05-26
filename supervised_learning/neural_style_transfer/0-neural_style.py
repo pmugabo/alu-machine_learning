@@ -116,4 +116,5 @@ class NST:
                                           size=(h_new, w_new))
         rescaled = resized / 255
         rescaled = tf.clip_by_value(rescaled, 0, 1)
-        return (rescaled) 
+        return (rescaled)
+    

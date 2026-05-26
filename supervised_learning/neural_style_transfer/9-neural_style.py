@@ -320,3 +320,4 @@ class NST:
         generated_image = None
         cost = None
         return generated_image, cost
+    

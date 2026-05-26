@@ -254,3 +254,4 @@ class NST:
             )
 
         return style_cost
+    

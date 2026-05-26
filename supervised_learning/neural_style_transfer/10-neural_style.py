@@ -22,6 +22,7 @@ class NST:
         content_image: preprocessed style image
         alpha: weight for content cost
         beta: weight for style cost
+        model: the Keras model used to calculate cost
 
     class constructor:
         def __init__(self, style_image, content_image, alpha=1e4, beta=1)
@@ -30,6 +31,10 @@ class NST:
         def scale_image(image):
             rescales an image so the pixel values are between 0 and 1
                 and the largest side is 512 pixels
+
+    public instance methods:
+        def load_model(self):
+            creates model used to calculate cost from VGG19 Keras base model
     """
     style_layers = ['block1_conv1', 'block2_conv1', 'block3_conv1',
                     'block4_conv1', 'block5_conv1']
@@ -78,9 +83,7 @@ class NST:
         self.content_image = self.scale_image(content_image)
         self.alpha = alpha
         self.beta = beta
-
         self.load_model()
-        self.generate_features()
 
     @staticmethod
     def scale_image(image):
@@ -122,15 +125,15 @@ class NST:
         return (rescaled)
 
     def load_model(self):
-        '''
-            creates the model used to calculate cost
-            the model should use the VGG19 Keras model as a base
-            the model’s input should be the same as the VGG19 input
-            the model’s output should be a list containing the outputs
-            of the VGG19 layers listed in style_layers followed by content
-            _layer
-            saves the model in the instance attribute model
-        '''
+        """
+        Creates the model used to calculate cost from VGG19 Keras base model
+
+        Model's input should match VGG19 input
+        Model's output should be a list containing outputs of VGG19 layers
+            listed in style_layers followed by content_layers
+
+        Saves the model in the instance attribute model
+        """
         VGG19_model = tf.keras.applications.VGG19(include_top=False,
                                                   weights='imagenet')
         VGG19_model.save("VGG19_base_model")
@@ -154,170 +157,4 @@ class NST:
 
         model = tf.keras.models.Model(vgg.input, outputs)
         self.model = model
-
-    @staticmethod
-    def gram_matrix(input_layer):
-        '''
-            Update the class NST to be able to calculate gram matrices:
-
-            parameters:
-                input_layer [numpy.ndarray of shape (h, w, c)]:
-                    containing the layer output for which the
-                    gram matrix is calculated
-
-            returns:
-                the gram matrix as a numpy.ndarray of shape
-                (c, c)
-        '''
-        if not (isinstance(input_layer, tf.Tensor) or
-                isinstance(input_layer, tf.Variable)) or len(
-                    input_layer.shape
-                ) != 4:
-            raise TypeError("input_layer must be a tensor of rank 4")
-
-        _, h, w, c = input_layer.shape
-        product = int(h * w)
-        features = tf.reshape(input_layer, (product, c))
-        gram = tf.matmul(features, features, transpose_a=True)
-        gram = tf.expand_dims(gram, axis=0)
-        gram /= tf.cast(product, tf.float32)
-        return (gram)
-
-    def generate_features(self):
-        '''
-            extracts the features used to calculate neural style cost
-
-            returns:
-                the style features and the content features
-        '''
-        vgg19_model = tf.keras.applications.vgg19
-
-        preprocess_style = vgg19_model.preprocess_input(
-            self.style_image * 255)
-        preprocess_content = vgg19_model.preprocess_input(
-            self.content_image * 255)
-
-        style_features = self.model(preprocess_style)[:-1]
-        content_feature = self.model(preprocess_content)[-1]
-
-        gram_style_features = []
-        for feature in style_features:
-            gram_style_features.append(self.gram_matrix(feature))
-
-        self.gram_style_features = gram_style_features
-        self.content_feature = content_feature
-
-    def layer_style_cost(self, style_output, gram_target):
-        '''
-            Calculates the style cost for a single layer
-        '''
-        if not (isinstance(style_output, tf.Tensor) or
-                isinstance(style_output, tf.Variable)) or len(
-                    style_output.shape) != 4:
-            raise TypeError("style_output must be a tensor of rank 4")
-
-        one, h, w, c = style_output.shape
-        if not isinstance(gram_target, (tf.Tensor, tf.Variable)) or \
-           len(gram_target.shape) is not 3 or gram_target.shape != (1, c, c):
-            raise TypeError(
-                "gram_target must be a tensor of shape [1, {}, {}]".format(
-                    c, c))
-        gram_style = self.gram_matrix(style_output)
-        diff = tf.reduce_mean(tf.square(gram_style - gram_target))
-        return diff
-
-    def style_cost(self, style_outputs):
-        '''
-            Calculates the style cost for generated image
-
-            parameters:
-                style_outputs: a list containing the outputs of
-                the style layers
-
-            returns:
-                the style cost
-        '''
-        length = len(self.style_layers)
-        if not isinstance(style_outputs, list) or len(style_outputs) != length:
-            raise TypeError(
-                "style_outputs must be a list with a length of {}".format(
-                    length
-                )
-            )
-
-        weight = 1 / length
-        style_cost = 0.0
-
-        for i in range(length):
-            style_cost += weight * self.layer_style_cost(
-                style_outputs[i], self.gram_style_features[i]
-            )
-
-        return style_cost
-
-    def content_cost(self, content_output):
-        '''
-            Calculates the content cost for generated image
-        '''
-        if not isinstance(content_output, tf.Tensor) or len(
-                content_output.shape) != 4:
-            raise TypeError("content_output must be a tensor of rank 4")
-        content_cost = tf.reduce_mean(
-            tf.square(content_output - self.content_feature)
-        )
-        return content_cost
-
-    def total_cost(self, generated_image):
-        '''
-            Calculates the total cost for generated image
-        '''
-        if not isinstance(generated_image, tf.Tensor) or len(
-                generated_image.shape) != 4:
-            raise TypeError(
-                "content_output must be a tensor of shape {}".format(
-                    generated_image.shape
-                )
-            )
-
-    def compute_grads(self, generated_image):
-        '''
-            Calculates the gradients for the tf.Tensor
-            generated image of shape (1, nh, nw, 3)
-        '''
-        if not isinstance(generated_image, tf.Tensor) or len(
-                generated_image.shape) != 4:
-            raise TypeError(
-                "content_output must be a tensor of shape {}".format(
-                    generated_image.shape
-                )
-            )
-
-    def generate_image(self, iterations=1000, step=None, lr=0.01, beta1=0.9, beta2=0.99):
-        '''
-            Generates the neural style transfered image
-
-            parameters:
-                iterations [int]: the number of iterations to optimize the image
-                step [int]: the step to print information about the optimization
-                lr [float]: the learning rate
-                beta1 [float]: the beta1 parameter for Adam optimization
-                beta2 [float]: the beta2 parameter for Adam optimization
-
-            returns:
-                generated_image, cost
-        '''
-        if not isinstance(iterations, int) or iterations <= 0:
-            raise TypeError("iterations must be a positive integer")
-        if not isinstance(lr, (int, float)) or lr <= 0:
-            raise TypeError("lr must be a positive number")
-        if step is not None and (not isinstance(step, int) or step <= 0):
-            raise TypeError("step must be a positive integer")
-        if not isinstance(beta1, (int, float)) or beta1 < 0 or beta1 >= 1:
-            raise TypeError("beta1 must be a float in the [0, 1] range")
-        if not isinstance(beta2, (int, float)) or beta2 < 0 or beta2 >= 1:
-            raise TypeError("beta2 must be a float in the [0, 1] range")
-
-        generated_image = None
-        cost = None
-        return generated_image, cost
-    
+        

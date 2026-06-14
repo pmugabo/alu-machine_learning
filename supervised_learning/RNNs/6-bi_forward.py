@@ -73,4 +73,4 @@ class BidirectionalCell:
         h_prev = np.tanh(np.dot(concat_input, self.Whb) + self.bhb)
 
         return h_prev
-    
+ 

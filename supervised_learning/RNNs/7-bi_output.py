@@ -112,3 +112,4 @@ class BidirectionalCell:
         Y = self.softmax(Y)
 
         return Y
+    

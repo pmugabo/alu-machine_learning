@@ -44,8 +44,9 @@ def expectation_maximization(X, k,
         return None, None, None, None, None
 
     pi, m, S = initialize(X, k)
-    g, l = expectation(X, pi, m, S)
-    prev_like = i = 0
+    g, total_log_like = expectation(X, pi, m, S)
+    prev_like = total_log_like
+    i = 0
     msg = "Log Likelihood after {} iterations: {}"
 
     for i in range(iterations):

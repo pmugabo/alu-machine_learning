@@ -23,8 +23,7 @@ def forward(Observation, Emission, Transition, Initial):
         for n in range(N):
             Transitions = Transition[:, n]
             Emissions = Emission[n, Observation[t]]
-            F[n, t] = np.sum(Transitions * F[:, t - 1]
-                             * Emissions)
+            F[n, t] = np.sum(Transitions * F[:, t - 1] * Emissions)
 
     # Termination P(O|λ) == ∑Ni=1 αT (i)
     # P = np.sum(F[:, -1])
@@ -53,8 +52,6 @@ def baum_welch(Observations, Transition, Emission, Initial, iterations=1000):
     """
     Baum-Welch algorithm for a hidden markov model
     """
-    if iterations == 1000:
-        iterations = 385
     N, M = Emission.shape
     T = Observations.shape[0]
 
@@ -64,27 +61,32 @@ def baum_welch(Observations, Transition, Emission, Initial, iterations=1000):
 
         xi = np.zeros((N, N, T - 1))
         for t in range(T - 1):
-            denominator = np.dot(np.dot(alpha[:, t].T, Transition) *
-                                 Emission[:, Observations[t + 1]].T,
-                                 beta[:, t + 1])
+            denominator = np.dot(
+                np.dot(alpha[:, t].T, Transition) *
+                Emission[:, Observations[t + 1]].T,
+                beta[:, t + 1]
+            )
+            if denominator == 0:
+                denominator = 1e-10
             for i in range(N):
                 numerator = alpha[i, t] * Transition[i] * \
-                            Emission[:, Observations[t + 1]].T * \
-                            beta[:, t + 1].T
+                    Emission[:, Observations[t + 1]].T * \
+                    beta[:, t + 1].T
                 xi[i, :, t] = numerator / denominator
 
         gamma = np.sum(xi, axis=1)
-        Transition = np.sum(xi, 2) / np.sum(gamma,
-                                            axis=1).reshape((-1, 1))
+        gamma_sum = np.sum(gamma, axis=1).reshape((-1, 1))
+        gamma_sum[gamma_sum == 0] = 1e-10
+        Transition = np.sum(xi, 2) / gamma_sum
 
         # adding additional T element in gamma
-
-        gamma = np.hstack((gamma, np.sum(xi[:, :, T - 2],
-                                         axis=0).reshape((-1, 1))))
+        gamma = np.hstack(
+            (gamma, np.sum(xi[:, :, T - 2], axis=0).reshape((-1, 1)))
+        )
 
         denominator = np.sum(gamma, axis=1)
+        denominator[denominator == 0] = 1e-10
         for s in range(M):
-            Emission[:, s] = np.sum(gamma[:, Observations == s],
-                                    axis=1)
+            Emission[:, s] = np.sum(gamma[:, Observations == s], axis=1)
         Emission = np.divide(Emission, denominator.reshape((-1, 1)))
     return Transition, Emission
